@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#14213a">
+  <meta name="description" content="FinScope анализирует расходы по выписке и показывает, что изменилось.">
+  <title>FinScope — анализ расходов</title>
+  <link rel="icon" href="./mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css">
+  <script defer src="./model.js"></script>
+  <script defer src="./agent.js"></script>
+  <script defer src="./storage.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="i-mark" viewBox="0 0 24 24"><path d="M3 19V5m0 14h18M6 14l5-5 4 3 5-6m-4 0h4v4"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h14"/><path d="M3 6h.1M3 12h.1M3 18h.1"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M11 3c.7 4.9 2.6 6.8 7.5 7.5-4.9.7-6.8 2.6-7.5 7.5-.7-4.9-2.6-6.8-7.5-7.5 4.9-.7 6.8-2.6 7.5-7.5Zm8 12v6m-3-3h6"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4m-4 4 4-4 4 4M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="14" rx="2"/><path d="M8 4v4m8-4v4M4 11h16"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M19 8V5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h14V8H6a2 2 0 0 1 0-4m14 7h-4a2 2 0 0 0 0 4h4m-4-2h.1"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m16 3 4 4-4 4m4-4H7a3 3 0 0 0-3 3m4 11-4-4 4-4m-4 4h13a3 3 0 0 0 3-3"/></symbol>
+    <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M6 4l2 1 2-1 2 1 2-1 2 1 2-1v16l-2-1-2 1-2-1-2 1-2-1-2 1V4Zm3 5h6m-6 4h6m-6 3h4"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 19h16M7 15v-4m5 4V6m5 9V9"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="m12 3 7 3v5c0 4-2.7 7-7 10-4.3-3-7-6-7-10V6l7-3Zm-3 8 2 2 4-4"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 4.5 4.5"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8v.1"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12m0-12L6 18"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="m4 4 16 8-16 8 3-8-3-8Zm3 8h13"/></symbol>
+    <symbol id="i-warning" viewBox="0 0 24 24"><path d="M10.3 4.4 2.9 18a1.6 1.6 0 0 0 1.4 2.4h15.4a1.6 1.6 0 0 0 1.4-2.4L13.7 4.4a1.9 1.9 0 0 0-3.4 0ZM12 9v4.5m0 3.5v.1"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><path d="M3 11h18"/></symbol>
+    <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v12m-4-4 4 4 4-4M4 17v3h16v-3"/></symbol>
+  </svg>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="#overview"><span class="brand-icon"><svg class="icon"><use href="#i-mark"/></svg></span><span>Fin<span class="brand-accent">Scope</span></span></a>
+      <nav aria-label="Разделы" class="nav">
+        <a href="#overview" aria-current="location"><svg class="icon"><use href="#i-grid"/></svg> Обзор</a>
+        <a href="#transactions"><svg class="icon"><use href="#i-list"/></svg> Операции</a>
+        <a href="#quality"><svg class="icon"><use href="#i-shield"/></svg> Проверка CSV</a>
+        <a href="#analytics"><svg class="icon"><use href="#i-chart"/></svg> Аналитика</a>
+        <a href="#budget"><svg class="icon"><use href="#i-wallet"/></svg> Бюджет</a>
+        <a href="#archive"><svg class="icon"><use href="#i-folder"/></svg> Архив<span id="archive-count" hidden></span></a>
+        <a href="#assistant"><svg class="icon"><use href="#i-spark"/></svg> ИИ-помощник</a>
+        <a href="#prices"><svg class="icon"><use href="#i-database"/></svg> Статистика БНС</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <button id="about-open" class="sidebar-link" type="button" aria-label="О модели"><svg class="icon"><use href="#i-info"/></svg> О модели</button>
+        <div class="privacy"><svg class="icon"><use href="#i-database"/></svg><span>Локальная база<br><small>Хранение в этом браузере</small></span></div>
+      </div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <span class="breadcrumb">Личные финансы <span>/</span> <strong id="current-section">Обзор</strong></span>
+        <div class="top-actions">
+          <button type="button" class="source-badge" id="source-label"></button>
+          <a href="#assistant" class="button agent-open"><svg class="icon"><use href="#i-spark"/></svg> Спросить ИИ</a>
+          <button type="button" class="button primary" id="import-open"><svg class="icon"><use href="#i-upload"/></svg> Загрузить CSV</button>
+        </div>
+      </header>
+      <div class="content">
+        <div id="period-host" class="period-host">
+          <span class="period-caption">Период анализа</span>
+          <label class="select-field period-field"><svg class="icon"><use href="#i-calendar"/></svg><select id="period" aria-label="Период анализа"></select><svg class="icon chevron"><use href="#i-chevron"/></svg></label>
+        </div>
+        <div class="page" data-page="overview">
+        <section class="intro" id="overview" aria-labelledby="overview-title">
+          <div>
+            <h1 id="overview-title">Обзор расходов</h1>
+            <p id="statement-status" aria-live="polite"></p>
+          </div>
+        </section>
+        <section class="audit-banner" id="audit-banner" aria-labelledby="audit-banner-title">
+          <span id="audit-banner-icon" class="audit-icon" aria-hidden="true"></span>
+          <div id="audit-summary" role="status"><h2 id="audit-banner-title">Проверка выписки</h2><p id="audit-message"></p></div>
+          <button type="button" class="button audit-button" id="audit-open" hidden>Проверить строки</button>
+          <button type="button" class="button audit-example" id="audit-example" hidden>Показать пример с дублем</button>
+        </section>
+        <section class="metrics" id="metrics" aria-label="Показатели за период"></section>
+        <div class="overview-links">
+          <a href="#analytics" class="panel overview-link"><span class="metric-icon"><svg class="icon"><use href="#i-chart"/></svg></span><h2>Аналитика</h2><p id="overview-trend"></p></a>
+          <a href="#quality" class="panel overview-link"><span class="metric-icon"><svg class="icon"><use href="#i-shield"/></svg></span><h2>Проверка CSV</h2><p id="overview-checks"></p></a>
+          <a href="#budget" class="panel overview-link"><span class="metric-icon"><svg class="icon"><use href="#i-wallet"/></svg></span><h2>Бюджет</h2><p>Месячные лимиты и остатки по категориям</p></a>
+          <a href="#prices" class="panel overview-link"><span class="metric-icon"><svg class="icon"><use href="#i-database"/></svg></span><h2>Статистика БНС</h2><p id="overview-prices"></p></a>
+        </div>
+        <div class="overview-snapshot">
+          <section class="panel snapshot-panel" aria-labelledby="snapshot-categories-title">
+            <div class="panel-head"><h2 id="snapshot-categories-title">Главные категории</h2><a href="#analytics" class="source-link">Аналитика</a></div>
+            <div id="overview-categories" class="snapshot-categories"></div>
+          </section>
+          <section class="panel snapshot-panel" aria-labelledby="snapshot-recent-title">
+            <div class="panel-head"><h2 id="snapshot-recent-title">Последние операции</h2><a href="#transactions" class="source-link">Все операции</a></div>
+            <div id="overview-recent" class="snapshot-recent"></div>
+          </section>
+        </div>
+        </div>
+        <div class="page" data-page="analytics" id="analytics" hidden>
+        <div class="page-heading"><h1>Аналитика расходов</h1><p>Динамика, категории и причины изменений.</p></div>
+        <div class="charts">
+          <section class="panel trend-panel" aria-labelledby="trend-title">
+            <div class="panel-head">
+              <div><h2 id="trend-title">Динамика расходов</h2><p id="trend-caption"></p></div>
+              <div class="segments" role="group" aria-label="Масштаб графика">
+                <button type="button" data-bucket="day" aria-pressed="false">Дни</button>
+                <button type="button" data-bucket="week" aria-pressed="true">Недели</button>
+              </div>
+            </div>
+            <div id="trend-chart" class="trend-chart" aria-label="Расходы по датам" role="group"></div>
+            <div class="trend-footer"><span><i></i> Расходы за интервал</span><span id="trend-selection" role="status"></span><a href="#transactions" class="source-link" id="trend-view" hidden>Открыть операции</a></div>
+          </section>
+          <section class="panel split-panel" aria-labelledby="split-title">
+            <div class="panel-head"><div><h2 id="split-title">Куда ушли деньги</h2><p>Распределение по категориям</p></div></div>
+            <div class="split-body">
+              <div class="donut" id="donut"><div><strong id="donut-count"></strong><span>категорий</span></div></div>
+              <div class="legend" id="legend"></div>
+            </div>
+          </section>
+        </div>
+        <section class="panel change-panel" id="growth" aria-labelledby="growth-title">
+          <div class="change-main">
+            <div class="panel-head"><div><h2 id="growth-title">Рост и снижение расходов</h2><p id="growth-unit"></p></div></div>
+            <div class="growth-graph" id="growth-graph" role="group" aria-label="Изменение расходов по месяцам"></div>
+            <p class="growth-note" id="growth-note" aria-live="polite"></p>
+            <div class="change-factors" id="change-factors" aria-label="Вклад категорий"></div>
+          </div>
+        </section>
+        <section class="panel insights" id="insights" aria-labelledby="insights-title">
+          <div class="insights-head">
+            <div class="insight-icon"><svg class="icon"><use href="#i-spark"/></svg></div>
+            <div><h2 id="insights-title">Выводы ИИ</h2><p>Сигналы, которые можно проверить по операциям</p></div>
+          </div>
+          <div class="insight-grid" id="insight-grid"></div>
+        </section>
+        </div>
+        <div class="page" data-page="transactions" id="transactions" hidden>
+        <div class="page-heading"><h1>Операции</h1><p>Поиск, фильтры и экспорт строк открытой выписки.</p></div>
+        <section class="panel transactions" aria-labelledby="transactions-title">
+          <div class="panel-head table-head">
+            <div><h2 id="transactions-title">Операции</h2><p id="transaction-count"></p></div>
+            <div class="filters">
+              <label class="search-field"><svg class="icon"><use href="#i-search"/></svg><input type="search" id="search" placeholder="Поиск по описанию" aria-label="Поиск по описанию"></label>
+              <label class="select-field"><select id="category-filter" aria-label="Категория"></select><svg class="icon chevron"><use href="#i-chevron"/></svg></label>
+              <button type="button" id="clear-filters" class="button" hidden>Сбросить</button>
+              <button type="button" id="export-rows" class="button"><svg class="icon"><use href="#i-download"/></svg> Скачать CSV</button>
+            </div>
+          </div>
+          <div class="transaction-tools">
+            <label>С даты<input id="filter-from" type="date"></label>
+            <label>По дату<input id="filter-to" type="date"></label>
+            <label>Сумма от<input id="filter-min" type="number" min="0" max="999999999.99" step="0.01" inputmode="decimal"></label>
+            <label>Сумма до<input id="filter-max" type="number" min="0" max="999999999.99" step="0.01" inputmode="decimal"></label>
+            <label>Статус<select id="filter-audit"><option value="">Любой</option><option value="pending">На проверке</option><option value="reviewed">Решение принято</option></select></label>
+            <label>Сортировка<select id="filter-sort"><option value="recent">Сначала новые</option><option value="old">Сначала старые</option><option value="large">По убыванию суммы</option><option value="small">По возрастанию суммы</option></select></label>
+          </div>
+          <p id="transaction-filter-message" class="filter-message" role="status" hidden></p>
+          <div class="table-wrap">
+            <table><thead><tr><th scope="col">Описание</th><th scope="col">Категория</th><th scope="col">Дата</th><th scope="col">Сумма</th></tr></thead><tbody id="transaction-rows"></tbody></table>
+          </div>
+          <div class="pagination"><button type="button" class="button" id="page-prev">Назад</button><span id="page-label"></span><button type="button" class="button" id="page-next">Далее</button></div>
+        </section>
+        </div>
+        <div class="page" data-page="quality" id="quality" hidden>
+          <div class="page-heading"><h1>Проверка CSV</h1><p>Совпадения, противоречия и решения по строкам всей выписки.</p></div>
+          <div id="quality-metrics" class="quality-metrics"></div>
+          <section class="panel quality-panel" aria-labelledby="quality-title">
+            <div class="panel-head quality-head"><div><h2 id="quality-title">Очередь проверки</h2><p id="quality-result"></p></div>
+              <div class="filters">
+                <label class="select-field"><select id="quality-status" aria-label="Статус проверки"><option value="">Все статусы</option><option value="open">На проверке</option><option value="done">Проверено</option></select><svg class="icon chevron"><use href="#i-chevron"/></svg></label>
+                <label class="select-field"><select id="quality-kind" aria-label="Тип совпадения"><option value="">Все типы</option><option value="conflict">Конфликт реквизитов</option><option value="reference">Повтор номера</option><option value="candidate">Возможный дубль</option></select><svg class="icon chevron"><use href="#i-chevron"/></svg></label>
+              </div>
+            </div>
+            <div id="quality-list" class="quality-list"></div>
+            <button type="button" id="quality-demo" class="button" hidden>Показать пример с дублем</button>
+            <div class="pagination" id="quality-pagination" hidden><button type="button" class="button" id="quality-prev">Назад</button><span id="quality-page"></span><button type="button" class="button" id="quality-next">Далее</button></div>
+          </section>
+        </div>
+        <div class="page" data-page="budget" id="budget" hidden>
+          <div class="page-heading"><h1>Бюджет на месяц</h1><p>Задайте лимит и сравните его с расходами открытой выписки.</p></div>
+          <div class="budget-layout">
+            <section class="panel budget-editor" aria-labelledby="budget-editor-title">
+              <h2 id="budget-editor-title">Месячный лимит</h2><p id="budget-context"></p>
+              <form id="budget-form">
+                <label>Месяц<input id="budget-month" type="month" min="1900-01" max="2099-12" required></label>
+                <label>Категория<select id="budget-category"></select></label>
+                <label>Сумма<input id="budget-amount" type="number" min="0.01" max="999999999.99" step="0.01" inputmode="decimal" required></label>
+                <button type="submit" class="button primary" id="budget-save">Сохранить лимит</button>
+                <p id="budget-form-status" role="status"></p>
+              </form>
+            </section>
+            <section class="panel budget-results" aria-labelledby="budget-title">
+              <div class="panel-head"><div><h2 id="budget-title">План и расход</h2><p id="budget-result" role="status"></p></div></div>
+              <div id="budget-items" class="budget-items"></div>
+              <p id="budget-alert" class="budget-alert" hidden></p>
+            </section>
+          </div>
+        </div>
+        <div class="page" data-page="prices" id="prices" hidden>
+          <div class="page-heading"><h1>Статистика БНС</h1><p>Инфляция в Казахстане с января по октябрь 2026 года.</p></div>
+          <section class="panel price-context" id="price-context" aria-labelledby="prices-chart-title">
+            <div class="panel-head">
+              <div><h2 id="prices-chart-title">Динамика инфляции</h2><p>Изменение цен в процентах</p></div>
+              <div class="segments" role="group" aria-label="Период изменения цен">
+                <button type="button" data-price="annual" aria-pressed="true">За год</button>
+                <button type="button" data-price="monthly" aria-pressed="false">За месяц</button>
+              </div>
+            </div>
+            <div class="price-summary"><strong id="price-value"></strong><span id="price-delta"></span></div>
+            <div id="price-bars" class="price-bars" role="group" aria-label="Динамика инфляции"></div>
+            <a id="price-source" class="source-link" target="_blank" rel="noopener noreferrer">Источник · Бюро национальной статистики</a>
+            <p id="price-release" class="price-release"></p>
+          </section>
+          <section class="panel price-register" aria-labelledby="price-register-title">
+            <div class="panel-head table-head"><h2 id="price-register-title">Публикации по месяцам</h2></div>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Период</th><th scope="col">За месяц</th><th scope="col">За год</th><th scope="col">Источник и дата</th></tr></thead><tbody id="price-table"></tbody></table></div>
+          </section>
+        </div>
+        <div class="page" data-page="archive" id="archive" hidden>
+          <div class="page-heading"><h1>Архив выписок</h1><p>Сохранённые файлы и решения по дублям в этом браузере.</p></div>
+          <section class="panel archive-panel" aria-label="Сохранённые выписки">
+            <p id="archive-status" role="status"></p>
+            <label class="search-field archive-search"><svg class="icon"><use href="#i-search"/></svg><input type="search" id="archive-search" placeholder="Найти выписку по имени" aria-label="Поиск по названию выписки"></label>
+            <div id="archive-list" class="archive-list"></div>
+            <div id="archive-delete" class="archive-delete" hidden>
+              <p id="archive-delete-label"></p>
+              <button type="button" class="button" id="archive-delete-cancel">Отмена</button>
+              <button type="button" class="button danger-button" id="archive-delete-apply">Удалить из архива</button>
+            </div>
+            <div class="dialog-actions">
+              <button type="button" class="button" id="archive-demo">Открыть демовыписку</button>
+              <button type="button" class="button primary" id="archive-import">Загрузить CSV</button>
+            </div>
+          </section>
+        </div>
+        <div class="page" data-page="assistant" id="assistant" hidden>
+          <div class="page-heading"><h1>ИИ-помощник</h1><p>Разбор выписки с расчётами и ссылками на строки и источники.</p></div>
+          <section class="panel agent-panel" aria-labelledby="agent-title">
+            <div class="agent-header">
+              <span class="insight-icon"><svg class="icon"><use href="#i-spark"/></svg></span>
+              <div><h2 id="agent-title">Диалог по выписке</h2><p id="agent-scope"></p></div>
+              <button type="button" class="button" id="agent-clear">Очистить чат</button>
+            </div>
+            <div id="agent-log" class="agent-log" role="log" aria-label="Диалог с помощником" aria-live="polite"></div>
+            <div class="agent-prompts" id="agent-prompts" aria-label="Примеры вопросов">
+              <button type="button" data-question="Почему изменились расходы?">Что изменилось?</button>
+              <button type="button" data-question="Сравни расходы за июль и октябрь">Сравнить июль и октябрь</button>
+              <button type="button" data-question="Есть ли дубли в выписке?">Дубли в выписке</button>
+              <button type="button" data-question="Что изменилось после проверки дублей?">Влияние проверки</button>
+              <button type="button" data-question="Какая инфляция в Казахстане?">Инфляция в Казахстане</button>
+            </div>
+            <form id="agent-form" class="agent-form">
+              <input id="agent-question" type="text" maxlength="320" placeholder="Например, почему отмечена строка 12?" aria-label="Вопрос помощнику" autocomplete="off" required>
+              <button type="submit" class="button primary" aria-label="Отправить вопрос"><svg class="icon"><use href="#i-send"/></svg></button>
+            </form>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+  <dialog id="import-dialog" aria-labelledby="import-title">
+    <form method="dialog" class="dialog-head"><h2 id="import-title">Загрузить выписку</h2><button class="icon-button" aria-label="Закрыть"><svg class="icon"><use href="#i-close"/></svg></button></form>
+    <p>Подойдёт CSV с колонками «Дата», «Описание», «Сумма» или отдельными колонками «Списание» и «Зачисление». Поддерживаются русские и английские заголовки, UTF-8 и Windows-1251.</p>
+    <form id="import-form">
+      <label class="file-field" for="file-input"><svg class="icon"><use href="#i-upload"/></svg><span id="filename">Выбрать CSV</span><input type="file" id="file-input" accept=".csv,text/csv" required></label>
+      <div class="import-settings">
+        <label>Знак расходов, если тип не указан<select id="import-sign"><option value="auto">Определить автоматически</option><option value="negative">Расходы со знаком минус</option><option value="positive">Расходы со знаком плюс</option></select></label>
+        <label>Валюта, если колонки нет<input type="text" id="import-currency" value="KZT" maxlength="3" pattern="[A-Za-z]{3}" required></label>
+      </div>
+      <p class="dialog-note">После анализа проверьте количество расходов. В автоматическом режиме положительные суммы считаются расходами, если для операций без типа нет отрицательных сумм.</p>
+      <div class="import-error" id="import-error" role="alert" hidden><p id="import-error-text"></p><ul id="import-error-details"></ul></div>
+      <div class="dialog-actions"><a class="button" href="./example.csv" download>Скачать пример</a><button type="submit" class="button primary" id="import-submit">Анализировать</button></div>
+    </form>
+  </dialog>
+  <dialog id="about-dialog" aria-labelledby="about-title">
+    <form method="dialog" class="dialog-head"><h2 id="about-title">Как работает FinScope</h2><button class="icon-button" aria-label="Закрыть"><svg class="icon"><use href="#i-close"/></svg></button></form>
+    <dl>
+      <dt>Категории расходов</dt><dd>Наивный байесовский классификатор обучается на размеченных описаниях покупок. Он оценивает категорию по словам в выписке и показывает совпадения в деталях операции. Если признаков мало, операция попадает в «Другое».</dd>
+      <dt>Выводы</dt><dd>Категории сравниваются с предыдущим календарным месяцем. Крупные операции оцениваются относительно медианы и разброса покупок в той же категории. Повторы ищутся по описанию, сумме и месяцу.</dd>
+      <dt>Данные</dt><dd>Импортированные операции и решения по дублям хранятся в локальной базе этого браузера. Все операции в демовыписке вымышлены. Под графиком инфляции есть ссылки на публикации Бюро национальной статистики.</dd>
+      <dt>Дубли в выписке</dt><dd>Совпадения по номеру операции или реквизитам попадают на проверку. Расходы пересчитываются после сохранения решения о строках.</dd>
+      <dt>ИИ-помощник</dt><dd>Локальная модель определяет тип вопроса, а ответ рассчитывается по открытой выписке или опубликованной статистике. В ответах можно перейти к связанным операциям.</dd>
+    </dl>
+  </dialog>
+  <dialog id="detail-dialog" aria-labelledby="detail-title">
+    <form method="dialog" class="dialog-head"><h2 id="detail-title">Детали операции</h2><button class="icon-button" aria-label="Закрыть"><svg class="icon"><use href="#i-close"/></svg></button></form>
+    <div id="detail-content"></div>
+  </dialog>
+  <dialog id="audit-dialog" class="audit-dialog" aria-labelledby="audit-title">
+    <form method="dialog" class="dialog-head">
+      <h2 id="audit-title">Проверка совпадений</h2>
+      <button class="icon-button" aria-label="Закрыть"><svg class="icon"><use href="#i-close"/></svg></button>
+    </form>
+    <div class="audit-case-head">
+      <div><p id="audit-position"></p><h3 id="audit-case-title"></h3></div>
+      <span id="audit-case-status" class="audit-label"></span>
+    </div>
+    <p id="audit-reason" class="audit-reason"></p>
+    <p class="audit-hint">Снимите отметку со строк, которые нужно исключить из расчётов.</p>
+    <div class="audit-row-actions">
+      <button type="button" class="button" id="audit-all">Отметить все</button>
+      <button type="button" class="button" id="audit-first">Отметить только первую</button>
+    </div>
+    <div class="table-wrap audit-table">
+      <table aria-label="Строки CSV для проверки"><thead><tr><th scope="col">Учесть</th><th scope="col">Строка</th><th scope="col">Операция</th><th scope="col">Сумма</th></tr></thead><tbody id="audit-rows"></tbody></table>
+    </div>
+    <div id="audit-row-nav" class="audit-pagination">
+      <button type="button" class="button" id="audit-row-prev" aria-label="Предыдущая страница строк">Назад</button>
+      <span id="audit-row-position"></span>
+      <button type="button" class="button" id="audit-row-next" aria-label="Следующая страница строк">Далее</button>
+    </div>
+    <p id="audit-impact" class="audit-impact" role="status"></p>
+    <div class="audit-footer">
+      <div class="audit-pagination">
+        <button type="button" class="button" id="audit-prev" aria-label="Предыдущее совпадение">Назад</button>
+        <button type="button" class="button" id="audit-next" aria-label="Следующее совпадение">Далее</button>
+      </div>
+      <button type="button" class="button primary" id="audit-save">Сохранить решение</button>
+    </div>
+  </dialog>
+  <div class="toast" id="toast" role="status" hidden></div>
+</body>
+</html>
